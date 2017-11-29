@@ -1,0 +1,230 @@
+*&---------------------------------------------------------------------*
+*& Report  ZP1266_P015
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  zp1266_p015.
+
+TABLES : pa0001,pa0002,pa0008.
+
+TYPE-POOLS:slis.
+
+DATA: gt_fcat TYPE slis_t_fieldcat_alv.
+DATA: gt_sort TYPE slis_t_sortinfo_alv.
+DATA: gs_layout TYPE slis_layout_alv.
+
+DATA: BEGIN OF gt_data OCCURS 0,
+  pernr LIKE pa0001-pernr, "Personelno
+  vorna LIKE pa0002-vorna, "adý
+  nachn LIKE pa0002-nachn, "soyadý
+  begda LIKE pa0001-begda, "Baþlangýç Tar.
+  endda LIKE pa0001-endda, "Bitiþ Tar.
+  kostl LIKE pa0001-kostl, "Masraf Yeri
+  orgeh LIKE pa0001-orgeh, "ORganizasyon
+  stell LIKE pa0001-stell, "Ýþ Alaný
+  gesch LIKE pa0002-gesch, "Cinsiyet
+  lga01 LIKE pa0008-lga01, "ücret türü
+  bet01 LIKE pa0008-bet01, "ödemeler için ücret tutar türü
+
+  END OF gt_data.
+
+SELECT-OPTIONS : s_pernr FOR pa0001-pernr,
+                 s_begda FOR pa0001-begda.
+
+PARAMETERS p_orgeh TYPE pa0001-orgeh.
+
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+PARAMETERS: p_hepsi RADIOBUTTON GROUP g1  DEFAULT 'X',
+            p_erkek RADIOBUTTON GROUP g1,
+            p_bayan RADIOBUTTON GROUP g1.
+
+SELECTION-SCREEN END OF BLOCK b1.
+
+START-OF-SELECTION.
+
+PERFORM get_data.
+
+end-of-SELECTION.
+
+PERFORM display_data.
+
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+
+FORM GET_DATA .
+
+data: lr_cinsiyet type RANGE OF pa0002-gesch WITH HEADER LINE.
+data: lr_orgeh TYPE RANGE OF pa0001-orgeh WITH HEADER LINE.
+
+  lr_cinsiyet = 'IEQ'.
+
+  CASE 'X'.
+    WHEN p_erkek.
+      lr_cinsiyet-low = '1'.
+      lr_cinsiyet-option = 'EQ'.
+    WHEN p_bayan.
+      lr_cinsiyet-low = '2'.
+      lr_cinsiyet-option = 'eq'.
+
+    WHEN p_hepsi.
+      lr_cinsiyet-low = '1'.
+      lr_cinsiyet-option = 'GE'.
+
+  ENDCASE.
+
+  IF p_orgeh IS NOT INITIAL.
+    lr_orgeh-low = p_orgeh.
+    lr_orgeh-sign = 'I'.
+    lr_orgeh-option = 'EQ'.
+    APPEND lr_orgeh.
+  ENDIF.
+
+  IF s_begda IS INITIAL.
+    s_begda-sign = 'I'.
+    s_begda-option = 'GE'.
+    s_begda-low = sy-datum.
+    APPEND s_begda.
+  ENDIF.
+
+  "data çekme kýsmý
+  SELECT * INTO CORRESPONDING FIELDS OF TABLE gt_data FROM pa0001 AS pa1
+    INNER JOIN pa0002 AS pa2 ON pa2~pernr EQ pa1~pernr
+    INNER JOIN pa0008 AS pa8 ON pa8~pernr EQ pa1~pernr
+
+    WHERE pa1~pernr   IN s_pernr     AND
+          pa1~endda   IN s_begda     AND
+          pa1~orgeh   IN lr_orgeh    AND
+          pa2~gesch   IN lr_cinsiyet AND
+          pa8~lga01       EQ '1001'.
+
+ENDFORM.                    " GET_DATA
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_DATA
+*&---------------------------------------------------------------------*
+
+FORM DISPLAY_DATA .
+
+  PERFORM alv_fieldcatalog USING 'GT_DATA' 'PA0001' 'PERNR' '1' 'PERSONEL NUMARA' 'PERSONEL NO' 'PERNR'.
+  PERFORM alv_fieldcatalog USING 'GT_DATA' 'PA0002' 'VORNA' '2' 'ÝSÝM' 'ÝSÝM' 'ÝSÝM'.
+  PERFORM alv_fieldcatalog USING 'GT_DATA' 'PA0001' 'NACHN' '3' 'SOYADI' 'SOYADI' 'SOYADI'.
+  PERFORM alv_fieldcatalog USING 'GT_DATA' 'PA0001' 'BEGDA' '4' 'BASLANGIC TARIH' 'BASLANGIC TARIH' 'BASLANGIC TARIH'.
+  PERFORM alv_fieldcatalog USING 'GT_DATA' 'PA0001' 'ENDDA' '5' 'BITIS TARIH' 'BITIS TARIH' 'BITIS TARIH'.
+  PERFORM alv_fieldcatalog USING 'GT_DATA' 'PA0001' 'KOSTL' '6' 'MASRAF YERI' 'MASRAF YERI' 'MASRAF YERI'.
+  PERFORM alv_fieldcatalog USING 'GT_DATA' 'PA0001' 'ORGEH' '7' 'ORGANIZASYON' 'ORGANIZASYON' 'ORGANIZASYON'.
+  PERFORM alv_fieldcatalog USING 'GT_DATA' 'PA0001' 'STELL' '8' 'IS ALANI' 'IS ALANI' 'IS ALANI'.
+  PERFORM alv_fieldcatalog USING 'GT_DATA' 'PA0002' 'GESCH' '9' 'CINSIYET' 'CINSIYET' 'CINSIYET'.
+  PERFORM alv_fieldcatalog USING 'GT_DATA' 'PA0008' 'LGA01' '10' 'UCRET TURU' 'UCRET TURU' 'UCRET TURU'.
+  PERFORM alv_fieldcatalog USING 'GT_DATA' 'PA0008' 'BET01' '11' 'UCRET' 'UCRET' 'UCRET'.
+
+  PERFORM alv_layout.
+  PERFORM sort_data.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+   EXPORTING
+*     I_INTERFACE_CHECK              = ' '
+*     I_BYPASSING_BUFFER             =
+*     I_BUFFER_ACTIVE                = ' '
+     I_CALLBACK_PROGRAM             = sy-repid
+*     I_CALLBACK_PF_STATUS_SET       = ' '
+*     I_CALLBACK_USER_COMMAND        = ' '
+*     I_STRUCTURE_NAME               =
+    IS_LAYOUT                      = gs_layout
+     IT_FIELDCAT                    = gt_fcat
+*     IT_EXCLUDING                   =
+*     IT_SPECIAL_GROUPS              =
+     IT_SORT                        = gt_sort
+*     IT_FILTER                      =
+*     IS_SEL_HIDE                    =
+*     I_DEFAULT                      = 'X'
+*     I_SAVE                         = ' '
+*     IS_VARIANT                     =
+*     IT_EVENTS                      =
+*     IT_EVENT_EXIT                  =
+*     IS_PRINT                       =
+*     IS_REPREP_ID                   =
+*     I_SCREEN_START_COLUMN          = 0
+*     I_SCREEN_START_LINE            = 0
+*     I_SCREEN_END_COLUMN            = 0
+*     I_SCREEN_END_LINE              = 0
+*     IR_SALV_LIST_ADAPTER           =
+*     IT_EXCEPT_QINFO                =
+*     I_SUPPRESS_EMPTY_DATA          = ABAP_FALSE
+*   IMPORTING
+*     E_EXIT_CAUSED_BY_CALLER        =
+*     ES_EXIT_CAUSED_BY_USER         =
+    TABLES
+      t_outtab                       = gt_data
+*   EXCEPTIONS
+*     PROGRAM_ERROR                  = 1
+*     OTHERS                         = 2
+            .
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+
+ENDFORM.                    " DISPLAY_DATA
+*&---------------------------------------------------------------------*
+*&      Form  ALV_LAYOUT
+*&---------------------------------------------------------------------*
+
+FORM ALV_LAYOUT .
+  data ls_layout type slis_layout_alv. "layout structer
+  gs_layout-zebra = 'X'. "zebra model
+
+ENDFORM.                    " ALV_LAYOUT
+*&---------------------------------------------------------------------*
+*&      Form  SORT_DATA
+*&---------------------------------------------------------------------*
+
+
+FORM SORT_DATA .
+  data lv_sort type slis_sortinfo_alv. "sort info ile sýralama
+
+  lv_sort-spos = 1. "birinci öncelikli sort
+  lv_sort-fieldname = 'VORNA'. "isim
+  lv_sort-up = 'X'.
+  APPEND lv_sort to gt_sort.
+
+  lv_sort-spos = 2. "ikinci oncelikli sort
+  lv_sort-fieldname = 'PERNR'." personel numarasý
+  lv_sort-up = 'X'.
+  APPEND lv_sort to gt_sort.
+ENDFORM.                    " SORT_DATA
+*&---------------------------------------------------------------------*
+*&      Form  ALV_FIELDCATALOG
+*&---------------------------------------------------------------------*
+
+*----------------------------------------------------------------------*
+FORM alv_fieldcatalog  USING    value(tabname)
+                                value(r_tabname)
+                                value(fieldname)
+                                value(col_pos)
+                                value(seltext_l)
+                                value(seltext_m)
+                                value(seltext_s).
+
+  DATA : ls_fcat TYPE slis_fieldcat_alv.
+
+  ls_fcat-tabname         = tabname.
+  ls_fcat-ref_tabname     = r_tabname.
+  ls_fcat-fieldname       = fieldname.
+  ls_fcat-ref_fieldname   = fieldname.
+  ls_fcat-col_pos         = col_pos.
+  ls_fcat-seltext_l       = seltext_l.
+  ls_fcat-seltext_m       = seltext_m.
+  ls_fcat-seltext_s       = seltext_s.
+
+  IF fieldname EQ 'BET01'.
+    ls_fcat-do_sum = 'X'.
+  ENDIF.
+
+  APPEND ls_fcat TO gt_fcat.
+  CLEAR ls_fcat.
+
+
+ENDFORM.                    " ALV_FIELDCATALOG
