@@ -1,0 +1,136 @@
+*&---------------------------------------------------------------------*
+*& Report  ZP1266_P013
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  ZP1266_P013.
+TYPE-POOLS: slis.
+DATA: gt_fcat TYPE slis_t_fieldcat_alv,
+      gs_layout TYPE slis_layout_alv.
+TABLES pa0002.
+
+DATA : BEGIN OF gt_data OCCURS 0,
+  pernr TYPE pa0002-pernr,
+  vorna TYPE pa0002-vorna,
+  endda TYPE pa0002-endda,
+  begda TYPE pa0002-begda,
+  uname TYPE pa0002-uname,
+  nachn TYPE pa0002-nachn,
+  END OF gt_data.
+
+PARAMETERS r_list RADIOBUTTON GROUP g1.
+PARAMETERS r_grid RADIOBUTTON GROUP g1 DEFAULT 'X' .
+
+INITIALIZATION.
+
+"r_list = 'X'.
+
+START-OF-SELECTION.
+perform get_data.
+
+
+end-of-SELECTION.
+perform display_data.
+
+
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+FORM GET_DATA .
+
+  SELECT * FROM pa0002 INTO CORRESPONDING FIELDS OF TABLE gt_data.
+ENDFORM.                    " GET_DATA
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_DATA
+*&---------------------------------------------------------------------*
+FORM DISPLAY_DATA .
+  data temp(40).
+  perform add_fcat.
+
+  IF r_list eq 'X'.
+    temp = 'REUSE_ALV_LIST_DISPLAY'.
+
+  ELSEIF r_grid eq 'X'.
+    temp = 'REUSE_ALV_GRID_DISPLAY'.
+  ENDIF.
+
+  CALL FUNCTION temp
+   EXPORTING
+*     I_INTERFACE_CHECK                 = ' '
+*     I_BYPASSING_BUFFER                = ' '
+*     I_BUFFER_ACTIVE                   = ' '
+     I_CALLBACK_PROGRAM                = sy-repid
+     I_CALLBACK_PF_STATUS_SET          = ' '
+     I_CALLBACK_USER_COMMAND           = 'USER_COMMAND'
+
+
+     IT_FIELDCAT                       = gt_fcat
+*     IT_EXCLUDING                      =
+*     IT_SPECIAL_GROUPS                 =
+*     IT_SORT                           =
+*     IT_FILTER                         =
+*     IS_SEL_HIDE                       =
+*     I_DEFAULT                         = 'X'
+*     I_SAVE                            = ' '
+*     IS_VARIANT                        =
+*     IT_EVENTS                         =
+*     IT_EVENT_EXIT                     =
+*     IS_PRINT                          =
+*     IS_REPREP_ID                      =
+*     I_SCREEN_START_COLUMN             = 0
+*     I_SCREEN_START_LINE               = 0
+*     I_SCREEN_END_COLUMN               = 0
+*     I_SCREEN_END_LINE                 = 0
+*     I_HTML_HEIGHT_TOP                 = 0
+*     I_HTML_HEIGHT_END                 = 0
+*     IT_ALV_GRAPHICS                   =
+*     IT_HYPERLINK                      =
+*     IT_ADD_FIELDCAT                   =
+*     IT_EXCEPT_QINFO                   =
+*     IR_SALV_FULLSCREEN_ADAPTER        =
+*   IMPORTING
+*     E_EXIT_CAUSED_BY_CALLER           =
+*     ES_EXIT_CAUSED_BY_USER            =
+    TABLES
+      t_outtab                          = gt_data
+*   EXCEPTIONS
+*     PROGRAM_ERROR                     = 1
+*     OTHERS                            = 2
+            .
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+ENDFORM.                    " DISPLAY_DATA
+*&---------------------------------------------------------------------*
+*&      Form  ADD_FCAT
+*&---------------------------------------------------------------------*
+FORM ADD_FCAT .
+  data ls_fcat type slis_fieldcat_alv.
+  ls_fcat-tabname = 'GT_DATA'.
+  ls_fcat-ref_tabname = 'PA0002'.
+  ls_fcat-fieldname = 'PERNR'.
+  ls_fcat-ref_fieldname = 'PERNR'.
+  APPEND ls_fcat to gt_fcat.
+  clear ls_fcat.
+
+  ls_fcat-tabname = 'GT_DATA'.
+  ls_fcat-ref_tabname = 'PA0002'.
+  ls_fcat-fieldname = 'VORNA'.
+  ls_fcat-ref_fieldname = 'VORNA'.
+  APPEND ls_fcat to gt_fcat.
+  CLEAR ls_fcat.
+
+ENDFORM.                    " ADD_FCAT
+
+FORM USER_COMMAND USING r_ucomm TYPE sy-ucomm rs_selfield TYPE slis_selfield.
+  CASE r_ucomm.
+    WHEN '&IC1'. "çift týklama olayýný tutuyor.
+      MESSAGE 'cift týkla' TYPE 'I'.
+
+  ENDCASE.
+
+ENDFORM.
